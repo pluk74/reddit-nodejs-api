@@ -52,3 +52,14 @@ CREATE TABLE comments (
   CONSTRAINT fk_comments_postId_posts_id FOREIGN KEY (postId) REFERENCES posts(id)
 );
 
+
+CREATE TABLE votes (
+	postId int(11) NOT NULL,
+	userId INT(11) NOT NULL,
+	vote  TINYINT NOT NULL,
+	createdAt TIMESTAMP NOT NULL DEFAULT 0,
+	updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY pk_postId_userId (postId, userId),
+	CONSTRAINT fk_votes_postId_posts_id FOREIGN KEY (postId) REFERENCES posts (id),
+	CONSTRAINT fk_votes_userId_users_id FOREIGN KEY (userId) REFERENCES users (id)
+);
