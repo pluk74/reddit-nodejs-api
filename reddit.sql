@@ -53,13 +53,35 @@ CREATE TABLE comments (
 );
 
 
-CREATE TABLE votes (
-	postId int(11) NOT NULL,
-	userId INT(11) NOT NULL,
-	vote  TINYINT NOT NULL,
-	createdAt TIMESTAMP NOT NULL DEFAULT 0,
-	updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	PRIMARY KEY pk_postId_userId (postId, userId),
-	CONSTRAINT fk_votes_postId_posts_id FOREIGN KEY (postId) REFERENCES posts (id),
-	CONSTRAINT fk_votes_userId_users_id FOREIGN KEY (userId) REFERENCES users (id)
-);
+CREATE TABLE `votes` (
+  `postId` int(11) NOT NULL,
+  `userId` int(11) NOT NULL,
+  `vote` tinyint(4) NOT NULL,
+  `createdAt` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`postId`,`userId`),
+  KEY `fk_votes_userId_users_id` (`userId`),
+  CONSTRAINT `fk_votes_postId_posts_id` FOREIGN KEY (`postId`) REFERENCES `posts` (`id`),
+  CONSTRAINT `fk_votes_userId_users_id` FOREIGN KEY (`userId`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 |
+
+CREATE TABLE sessions (
+  userId int(11) NOT NULL,
+  token varchar(1000) NOT NULL,
+  PRIMARY KEY(userId),
+  `createdAt` TIMESTAMP NOT NULL DEFAULT 0,
+  `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sessions_userId_users_usersId FOREIGN KEY (`userId`) REFERENCES `users` (`id`)
+)
+
+CREATE VIEW uv_AllPosts AS
+select `a`.`id` AS `id`,`a`.`title` AS `title`,`a`.`url` AS `url`
+,`a`.`userId` AS `userId`,`a`.`createdAt` AS `created`
+,`a`.`updatedAt` AS `updated`,`b`.`name` AS `name`
+,`c`.`username` AS `username`
+,SUM(if(vote>0,1,0)) ups, SUM(if(vote<0,1,0)) downs
+,sum(coalesce(`d`.`vote`,0)) AS `votes`
+,(sum(coalesce(`d`.`vote`,0)) / timestampdiff(SECOND,`d`.`updatedAt`,now())) AS `hot`
+,if((sum(if((`d`.`vote` > 0),1,0)) < sum(if((`d`.`vote` < 0),1,0))),((sum(if((`d`.`vote` > 0),1,0)) / sum(if((`d`.`vote` < 0),1,0))) * count(`d`.`vote`)),(sum(if((`d`.`vote` < 0),1,0)) / sum(if((`d`.`vote` > 0),1,0)))) AS `controversial` 
+from (((`posts` `a` join `subreddits` `b` on((`a`.`subredditId` = `b`.`subredditsId`))) join `users` `c` on((`a`.`userId` = `c`.`id`))) left join `votes` `d` on((`a`.`id` = `d`.`postId`))) 
+group by `a`.`id`,`a`.`title`,`a`.`url`,`a`.`userId`,`a`.`createdAt`,`a`.`updatedAt`,`b`.`name`,`c`.`username`
