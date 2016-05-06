@@ -83,5 +83,7 @@ select `a`.`id` AS `id`,`a`.`title` AS `title`,`a`.`url` AS `url`
 ,sum(coalesce(`d`.`vote`,0)) AS `votes`
 ,(sum(coalesce(`d`.`vote`,0)) / timestampdiff(SECOND,`d`.`updatedAt`,now())) AS `hot`
 ,if((sum(if((`d`.`vote` > 0),1,0)) < sum(if((`d`.`vote` < 0),1,0))),((sum(if((`d`.`vote` > 0),1,0)) / sum(if((`d`.`vote` < 0),1,0))) * count(`d`.`vote`)),(sum(if((`d`.`vote` < 0),1,0)) / sum(if((`d`.`vote` > 0),1,0)))) AS `controversial` 
+,count(commentId) comments
 from (((`posts` `a` join `subreddits` `b` on((`a`.`subredditId` = `b`.`subredditsId`))) join `users` `c` on((`a`.`userId` = `c`.`id`))) left join `votes` `d` on((`a`.`id` = `d`.`postId`))) 
+LEFT OUTER JOIN comments e ON a.id = e.postId
 group by `a`.`id`,`a`.`title`,`a`.`url`,`a`.`userId`,`a`.`createdAt`,`a`.`updatedAt`,`b`.`name`,`c`.`username`

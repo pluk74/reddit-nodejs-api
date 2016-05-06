@@ -154,8 +154,9 @@ app.use(function(request, response, next) {
 
 
 
+
 app.get('/homepage', function(request, response) {
-  
+
   response.redirect('/homepage/newest');
 });
 
@@ -194,9 +195,9 @@ app.get('/homepage/:sort', function(request, response) {
     }
     else {
       posts.map(function(element) {
-        console.log(element.id+", "+element.ups);
-        output = output + `<li class="content-item"><h2 class="content-item__title"><a href="` + element.url + `">` + element.title + ` <span style="color:red">` + element.votes + "</span>" +
-          `</a></h2><p>Created by ` + element.username + `</p></li>`;
+        console.log(element.id + ", " + element.ups);
+        output = output + `<li class="content-item"><h2 class="content-item__title"><a href="` + element.url + `">` + element.title + ` </a></h2><span style="color:red">` + element.votes + `</span>
+          <p><a href="/comments?postid=${element.id}">${element.comments} comments</a></p><p>Created by ` + element.username + `</p></li>`;
         output = output + `<form action="/vote" method="post">
   <input type="hidden" name="vote" value="1">
   <input type="hidden" name="postId" value="${element.id}">
@@ -216,8 +217,21 @@ app.get('/homepage/:sort', function(request, response) {
   })
 });
 
+app.get('/comments', function(req, res) {
+  
+  var postid = req.query.postid;
+  console.log('rhinoceros: '+postid);
+  redditAPI.getCommentsForPost(postid, function(err, result) {
+    if(err){
+      console.log(err);
+    }
+    else {
+      res.send(result);
+    }
+  });
+});
 
-app.get('/:name', function(req, res, next) {
+app.get('/:name', function(req, res) {
 
   var options = {
     root: '/home/ubuntu/workspace/',
@@ -241,10 +255,14 @@ app.get('/:name', function(req, res, next) {
 
 });
 
-app.post('/comments', function(req, res) {
-  
-  
-})
+
+
+// app.get('/calculator/:operation', function(request, response) {
+//   var op = request.params.operation;
+//   var postid = request.query.postid;
+//   var num2 = request.query.num2;
+//   response.send(calculate(op,parseInt(num1),parseInt(num2)));
+// });
 
 app.post('/vote', function(req, res) {
   //console.log('unicorn: '+parseInt(req.body.vote) );

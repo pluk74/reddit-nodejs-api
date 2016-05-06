@@ -185,7 +185,7 @@ module.exports = function RedditAPI(conn) {
       var orderBy = options.sortBy  || 'created';
       console.log("komodo dragon: "+ typeof orderBy);
       conn.query(`
-        SELECT id, title,url,userId, created, updated,name, username, ups, downs, votes
+        SELECT id, title,url,userId, created, updated,name, username, ups, downs, comments, votes
         FROM uv_AllPosts ORDER BY ?? DESC LIMIT ? OFFSET ?
         `, [orderBy, limit, offset],
         function(err, results) {
@@ -300,6 +300,7 @@ module.exports = function RedditAPI(conn) {
         }
       );
     },
+    
     createOrUpdateVote: function(vote, callback) {
       if ([1, 0, -1].indexOf(vote.vote) === -1) {
         callback(new Error('invalid vote value!'));
