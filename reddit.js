@@ -81,7 +81,7 @@ module.exports = function RedditAPI(conn) {
       conn.query(
         'INSERT INTO `posts` (`userId`, `title`, `url`, subredditId, `createdAt`) VALUES (?, ?, ?, ?, ?)', [post.userId, post.title, post.url, post.subredditId, null],
         function(err, result) {
-          console.log(result);
+          //console.log(result);
           if (err) {
             callback(err);
           }
@@ -176,20 +176,21 @@ module.exports = function RedditAPI(conn) {
       );
     },
     getAllPosts: function(options, callback) {
+      //console.log('start of getAllPosts functdion');
       if (!callback) {
         callback = options;
         options = {};
       }
       var limit = options.numPerPage || 25; // if options.numPerPage is "falsy" then use 25
       var offset = (options.page || 0) * limit;
-      var orderBy = options.sortBy  || 'created';
-      console.log("komodo dragon: "+ typeof orderBy);
+      var orderBy = options.sortBy || 'created';
+      //console.log("komodo dragon: "+ typeof orderBy);
       conn.query(`
         SELECT id, title,url,userId, created, updated,name, username, ups, downs, comments, votes
         FROM uv_AllPosts ORDER BY ?? DESC LIMIT ? OFFSET ?
         `, [orderBy, limit, offset],
         function(err, results) {
-          
+
           if (err) {
             callback(err);
           }
@@ -277,6 +278,25 @@ module.exports = function RedditAPI(conn) {
         }
       );
     },
+    getCommentsForPost2: function(postId, callback) {
+
+      conn.query(`
+        SELECT a.userId, a.commentText, a.createdAt, a.updatedAt,u.username
+        FROM comments a 
+        LEFT OUTER JOIN users u ON a.userId = u.id
+        WHERE a.parentId IS NULL
+        AND a.postId = ?
+        `, [postId],
+        function(err, results) {
+          if (err) {
+            callback(err);
+          }
+          else {
+            callback(null, results);
+          }
+        }
+      );
+    },
     getCommentsForPost: function(postId, callback) {
 
       conn.query(`
@@ -300,7 +320,60 @@ module.exports = function RedditAPI(conn) {
         }
       );
     },
-    
+    getComments: function(maxLevel, parentIds, commentsMap, finalComments, callback) {
+      var query;
+      if (!callback) {
+        // first time function is called
+        callback = parentIds;
+        parentIds = [];
+        commentsMap = {};
+        finalComments = [];
+        query = 'select * from comments where parentId is null';
+      }
+      else if (maxLevel === 0 || parentIds.length === 0) {
+        callback(null, finalComments);
+        return;
+      }
+      else {
+        query = 'select * from comments where parentId in (' + parentIds.join(',') + ')';
+      }
+
+      conn.query(query, function(err, res) {
+        if (err) {
+          callback(err);
+          return;
+        }
+        res.forEach(
+          function(comment) {
+            commentsMap[comment.commentId] = comment;
+            if (comment.parentId === null) {
+              finalComments.push(comment);
+            }
+            else {
+              var parent = commentsMap[comment.parentId];
+              parent.replies = parent.replies || [];
+              parent.replies.push(comment);
+            }
+          }
+        );
+
+        var newParentIds = res.map(function(item) {
+          return item.id;
+        });
+        module.exports.getComments(maxLevel - 1, newParentIds, commentsMap, finalComments, callback);
+      });
+    },
+    getVoteScore: function(postId, callback) {
+      conn.query(`
+      select sum(vote) score from votes where postId = ?`, [postId], function(err, results) {
+        if (err) {
+          callback(err);
+        }
+        else {
+          callback(results);
+        }
+      });
+    },
     createOrUpdateVote: function(vote, callback) {
       if ([1, 0, -1].indexOf(vote.vote) === -1) {
         callback(new Error('invalid vote value!'));
@@ -318,7 +391,7 @@ module.exports = function RedditAPI(conn) {
             else {
               //console.log('elephant: '+vote.postId+" , "+ vote.userId);
               conn.query(`
-            SELECT postId, userId, vote FROM votes WHERE postId = ? AND userId = ?`, [parseInt(vote.postId), parseInt(vote.userId)],
+              SELECT postId, SUM(vote) score FROM votes WHERE postId = ? GROUP BY postId`, [parseInt(vote.postId)],
                 function(err, results) {
                   if (err) {
                     //console.log("wolf");
@@ -332,7 +405,60 @@ module.exports = function RedditAPI(conn) {
             }
           });
       }
+    },
+    renderLayout: function(pageTitle, isLoggedIn, content) {
+      var html = `
+      <!doctype>
+      <html>
+        <head>
+         <link rel="shortcut icon" href="../robot-character1.ico" type="image/x-icon" /> 
+         <link rel="stylesheet" type="text/css" href="../main.css">
+          <title>${pageTitle}</title>
+        </head>`;
+      html = html + `
+        <body>
+          <div class = "header">
+          <div class = "heading">
+          <img class="robot" src="../readdit_robot.jpg" alt="readdit robot!" style="width:50px;height:50px;">
+          <a href="/homepage/top"><h1>re<span id="mainTitle">[a]</span>ddit</h1></a>
+          </div>
+          <nav>
+            <ul class="sortingMenu">
+              <li class = "menuOption"><a href="/homepage/top">Top</a></li>
+              <li class = "menuOption"><a href="/homepage/hot">Hot</a></li>
+              <li class = "menuOption"><a href="/homepage/newest">Newest</a></li>
+              <li class = "menuOption"><a href="/homepage/controversial">Controversial</a></li>
+              <li class = "menuOption">${isLoggedIn ? '<a href="/logout">Logout</a></li>' : '<a href="/signin">Login</a></li><li><a href="/signup">Sign up!</a></li>'}
+            </ul>
+          </nav>
+          
+          </div>
+          
+          ${content}
+          <script   src="https://code.jquery.com/jquery-1.12.3.js"   integrity="sha256-1XMpEtA4eKXNNpXcJ1pmMPs8JV+nwLdEqwiJeCQEkyc="   crossorigin="anonymous"></script>
+          <script src="../script.js"></script>
+          
+        </body>
+        <footer>&copy; 2016 readdit inc. All rights reserved.</footer>
+      </html>`;
+      return html;
+    },
+    logOut: function(userId, callback) {
+      //console.log('hyena: '+'DELETE FROM sessions WHERE userId = '+userId);
+      conn.query(`
+        DELETE FROM sessions WHERE userId = ?`, [userId],
+        function(err, results) {
+          if (err) {
+            //console.log('salmon');
+            callback(err);
+          }
+          else {
+            callback(null, results);
+          }
+        });
+    },
+    findTitle: function() {
+
     }
   };
 };
-//postId = 24, userId = 23

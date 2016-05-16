@@ -1,12 +1,14 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
+var request = require('request');
 
 
 var app = express();
 // load the mysql library
 var mysql = require('mysql');
 var util = require('util');
+//app.use(bodyParser())
 // create a connection to our Cloud9 server
 var connection = mysql.createConnection({
   host: 'localhost',
@@ -18,7 +20,7 @@ var connection = mysql.createConnection({
 // load our API and pass it the connection
 var reddit = require('./reddit');
 var redditAPI = reddit(connection);
-
+var loggedIn;
 
 // redditAPI.createOrUpdateVote(
 //   {
@@ -124,6 +126,7 @@ var redditAPI = reddit(connection);
 // app.get('/homepage', function(req, res) {
 //   res.send('Hello World!');
 // });
+app.use(express.static('public'));
 app.use(bodyParser());
 app.use(cookieParser());
 app.use(function(request, response, next) {
@@ -133,10 +136,12 @@ app.use(function(request, response, next) {
     redditAPI.getUserFromSession(request.cookies.session, function(err, user) {
       if (err) {
         console.log('A: ' + err);
+        next();
       }
       else {
         if (user) {
           request.loggedInUser = user;
+          loggedIn = request.loggedInUser;
           console.log('B:  ' + user);
         }
         next();
@@ -151,12 +156,68 @@ app.use(function(request, response, next) {
   }
 });
 
+app.get('/signup', function(req, res) {
+  var output = `
+    <form action="/adduser" method="POST"> 
+  <div>
+    <input type="text" name="username" placeholder="Choose a username">
+  </div>
+  <div>
+    <input type="password" name="password" placeholder="Choose a password">
+  </div>
+  <button type="submit">Sign me up!</button>
+</form>`
+  res.send(redditAPI.renderLayout('readdit sign in', request.loggedInUser, output));
+});
 
 
+app.get('/logout', function(req, res) {
+  redditAPI.logOut(loggedIn, function(err, result) {
+    console.log('squirrel');
+    if (err) {
+      console.log("rooster: " + err);
+    }
+    else {
+      res.redirect('/homepage');
+    }
+  });
+});
+
+app.get('/newpost', function(req, res) {
+  var output = `
+  <form action="/addpost" method="POST"> 
+      <div>
+        <input type="text" class = "urlBox" name="url" placeholder="http://www.website.com">
+    </div>
+    <div>
+      <input type="text" class = "titleBox" name="title" placeholder="Title">
+    </div>
+    <button type="button" class="getSuggestion">Suggest title</button>
+    <button type="submit">Submit</button>
+    </form>
+  `;
+  res.send(redditAPI.renderLayout('readdit add new post', req.loggedInUser, output));
+});
+
+
+app.get('/signin', function(request, response) {
+  //response.send("this is a test");
+  var output = `
+    <form action="/login" method="POST"> <!-- what is this method="POST" thing? you should know, or ask me :) -->
+      <div>
+        <input type="text" name="username" placeholder="Enter username">
+    </div>
+    <div>
+      <input type="password" name="password" placeholder="Enter password">
+    </div>
+    <button type="submit">Log in</button>
+    </form>`
+  response.send(redditAPI.renderLayout('readdit sign in', request.loggedInUser, output));
+});
 
 
 app.get('/homepage', function(request, response) {
-
+  //response.send("heell");
   response.redirect('/homepage/newest');
 });
 
@@ -185,50 +246,113 @@ app.get('/homepage/:sort', function(request, response) {
   redditAPI.getAllPosts({
     sortBy: sortBy
   }, function(err, posts) {
-    var output = `${request.loggedInUser}<div>${sortBy}
-  
-    
-    </div><div id="contents"><h1>List of contents</h1><ul class="contents-list">`;
+    var output = `<div id="contents"><h1>List of contents</h1><a href="/newpost">Add new post</a><ul class="contents-list">`;
     if (err) {
       console.log(err);
       response.status(500).send('whoops try again later!');
     }
     else {
       posts.map(function(element) {
-        console.log(element.id + ", " + element.ups);
-        output = output + `<li class="content-item"><h2 class="content-item__title"><a href="` + element.url + `">` + element.title + ` </a></h2><span style="color:red">` + element.votes + `</span>
-          <p><a href="/comments?postid=${element.id}">${element.comments} comments</a></p><p>Created by ` + element.username + `</p></li>`;
-        output = output + `<form action="/vote" method="post">
-  <input type="hidden" name="vote" value="1">
-  <input type="hidden" name="postId" value="${element.id}">
-  <button type="submit">upvote this</button>
-</form>up votes : ${element.ups}<p>down votes : ${element.downs}</p>
-<form action="/vote" method="post">
-  <input type="hidden" name="vote" value="-1">
-  <input type="hidden" name="postId" value="${element.id}">
-  <button type="submit">downvote this</button>
-</form>`;
+        //console.log(element.id + ", " + element.ups);
+        output = output + `
+        <section class="post">
+        <section class="voting">
+          <form class="upVote" action="/vote" method="post">
+            <input type="hidden" name="vote" value="1">
+            <input type="hidden" name="postId" value="${element.id}">
+            <button class="arrow-up" type="submit"></button>
+          </form><p id="voteScore${element.id}" class="${element.votes>=0 ? 'positive-score':'negative-score'}">${element.votes}</p>
+          <form class="downVote" action="/vote" method="post">
+            <input type="hidden" name="vote" value="-1">
+            <input type="hidden" name="postId" value="${element.id}">
+            <button class="arrow-down" type="submit"></button>
+          
+          </form>
+        </section> 
+        <section class="content-item1">
+          <h2 class="content-item__title">
+            <a href="${element.url}">${element.title}</a>
+          </h2>
+          <p>Created by ${element.username}</p>
+          
+        <p>
+          <a href="/comments?postid=${element.id}">${element.comments} comments</a>
+        </p>
+        
+        
+        </section>
+        </section>
+        `;
         return;
       });
       output = output + "</ul></div>";
       //console.log(output);
-      response.send(output);
+      response.send(redditAPI.renderLayout('readdit', request.loggedInUser, output));
+    }
+  })
+});
+//<div class="arrow-down">${element.downs}</div>
+//<button type="submit">downvote this</button>
+
+
+
+app.get('/getTitle', function(req, res) {
+  var url = req.query.url;
+
+  request(url, function(err, response) {
+    if (err) {
+      res.send('');
+    }
+    else {
+      var html = response.body;
+      var title = html.split('<title>')[1].split('</title>')[0];
+      res.send(title);
     }
   })
 });
 
+
+
 app.get('/comments', function(req, res) {
-  
+
   var postid = req.query.postid;
-  console.log('rhinoceros: '+postid);
-  redditAPI.getCommentsForPost(postid, function(err, result) {
-    if(err){
+  var output = `<h5>Comments</h5>`;
+  var commentForm = `
+      <form action="/addComment" method="POST">
+
+        
+        <textarea type="textarea" id="commentBox" name="comment" placeholder="Enter comments"></textarea>
+        <input type="hidden" name="postId" value=${postid}>
+        <button type="submit">Create!</button>
+      </form>
+      `;
+  //console.log('rhinoceros: '+postid);
+  redditAPI.getCommentsForPost2(postid, function(err, result) {
+    if (err) {
+      res.send(redditAPI.renderLayout("readdit ERROR", req.loggedInUser, err));
+    }
+    else {
+      result.map(function(element) {
+        output = output + `
+        <p>${element.commentText}</p>
+        <p>From ${element.username} at ${element.createdAt}</p>`;
+      });
+      res.send(redditAPI.renderLayout("readdit comments", req.loggedInUser, output + commentForm));
+      //res.send(result);
+    }
+  });
+});
+
+app.get('/getVote', function(req, res) {
+  var postId = req.query.postId;
+  redditAPI.getVoteScore(postId, function(err, result) {
+    if (err) {
       console.log(err);
     }
     else {
       res.send(result);
     }
-  });
+  })
 });
 
 app.get('/:name', function(req, res) {
@@ -255,14 +379,43 @@ app.get('/:name', function(req, res) {
 
 });
 
-
-
-// app.get('/calculator/:operation', function(request, response) {
-//   var op = request.params.operation;
-//   var postid = request.query.postid;
-//   var num2 = request.query.num2;
-//   response.send(calculate(op,parseInt(num1),parseInt(num2)));
-// });
+app.post('/addComment', function(req, res) {
+  if (!req.loggedInUser) {
+    res.status(401).send(`You must be logged in to vote!<p><a href='/homepage')>Go to Homepage</a></p>`);
+  }
+  else {
+    console.log(req.body.postId);
+    redditAPI.createComment({
+      text: req.body.comment,
+      userId: req.loggedInUser,
+      postId: req.body.postId,
+      subredditId : 1
+    },
+    function(err, result) {
+      if(err) {
+        res.send(err);
+      }
+      else {
+        res.redirect(req.get('referer'));
+      }
+    })
+  }
+//   else {
+//     redditAPI.createComment({
+//       text: req.body.comment,
+//       userId: req.loggedInUser,
+//       postId: req.body.postId,
+//       null
+//     }, function(err, result) {
+//       if (err) {
+//         res.send(err);
+//       }
+//       else {
+//         res.redirect(req.get('referer'));
+//       }
+//     });
+//   }
+});
 
 app.post('/vote', function(req, res) {
   //console.log('unicorn: '+parseInt(req.body.vote) );
@@ -280,9 +433,10 @@ app.post('/vote', function(req, res) {
         console.log(err);
       }
       else {
+        res.send(result[0]);
         console.log(result[0]);
         //res.redirect('/homepage');
-        res.redirect(req.get('referer'));
+        //res.redirect(req.get('referer'));
 
       }
     })
@@ -359,6 +513,7 @@ app.post('/adduser', function(req, res) {
 
 app.post('/login', function(req, res) {
   //res.redirect('/homepage');
+  console.log(req.body);
   redditAPI.validatePassword(req.body.username, req.body.password, function(err, user) {
     if (err) {
       console.log(err);

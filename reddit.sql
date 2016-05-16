@@ -86,4 +86,5 @@ select `a`.`id` AS `id`,`a`.`title` AS `title`,`a`.`url` AS `url`
 ,count(commentId) comments
 from (((`posts` `a` join `subreddits` `b` on((`a`.`subredditId` = `b`.`subredditsId`))) join `users` `c` on((`a`.`userId` = `c`.`id`))) left join `votes` `d` on((`a`.`id` = `d`.`postId`))) 
 LEFT OUTER JOIN comments e ON a.id = e.postId
+WHERE e.parentId is NULL
 group by `a`.`id`,`a`.`title`,`a`.`url`,`a`.`userId`,`a`.`createdAt`,`a`.`updatedAt`,`b`.`name`,`c`.`username`

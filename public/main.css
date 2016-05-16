@@ -1,0 +1,135 @@
+body {
+    font: normal x-small verdana,arial,helvetica,sans-serif;
+    background-color: #99ccff;
+    z-index: 1;
+    min-height: 100%;
+    margin: 0;
+}
+
+h1 {
+    color: black;
+}
+
+#mainTitle {
+    color:red;
+}
+
+.heading {
+    display: flex;
+}
+
+.header {
+    background-color: #F8F8F8;
+    margin: 0;
+}
+
+.sortingMenu {
+    list-style-type:none;
+    /*display: flex;*/
+    font-size: larger;
+    
+
+    
+}
+
+.menuOption {
+    padding: 10px;
+    display: inline-block;
+    /*display: flex;*/
+    /*justify-content: space-between;*/
+    margin-right: 10px;
+    background-color: #BCBCBC;
+
+}
+
+.menuOption a {
+    color: black;
+
+}
+
+
+
+a {
+    text-decoration: none;
+
+}
+
+.post {
+    display: flex;
+    align-items: flex-end;
+    
+}
+.voting {
+    list-style-type:none;
+    display: flex;
+    /*display: inline;*/
+    /*justify-content: space-between;*/
+    align-items: center;
+    flex-direction: column;
+    /*justify-content: flex-start;*/
+    margin: 0px 50px 10px 10px;
+}
+.content-item1 {
+    list-style-type:none;
+    display: flex;
+    /*display: inline;*/
+    /*justify-content: space-between;*/
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin: 0px 50px 10px 10px;
+}
+
+.positive-score {
+    color:black;
+}
+
+.negative-score {
+    color: red;
+}
+/*.arrow-down {*/
+/*	width: 0; */
+/*	height: 0; */
+/*	border-left: 20px solid transparent;*/
+/*	border-right: 20px solid transparent;*/
+	
+/*	border-top: 20px solid black;*/
+/*}*/
+
+
+.arrow-down {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 20px 20px 0 20px;
+    border-color: black #99ccff #99ccff #99ccff;
+    padding: 0px;
+}
+
+
+
+
+.arrow-up {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 20px 20px 20px;
+    border-color: #99ccff #99ccff black #99ccff;
+    padding: 0px;
+}
+
+.robot {
+  border-radius: 50%;
+  -webkit-transition: -webkit-transform .8s ease-in-out;
+  transition: transform .8s ease-in-out;
+}
+.robot:hover {
+  -webkit-transform: rotate(360deg);
+  transform: rotate(360deg);
+}
+
+#commentBox {
+    width: 500px;
+    height: 50px;
+    
+}
